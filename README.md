@@ -93,6 +93,13 @@ curl -sSL https://get.rvm.io | bash -s stable --auto-dotfiles
 Close and open a new terminal, again, then:
 
 ```sh
-rvm install ruby-2.7
+rvm install ruby-3
 gem install gv_fsm
+```
+
+If the first of the above two commands fails, do the following:
+
+```sh
+brew uninstall --ignore-dependencies openssl
+brew install openssl@1.1
 ```
