@@ -13,7 +13,6 @@ slprj/
 
 # Output and log files
 /*.csv
-*.txt
 *.png
 
 # Visual Studio Code
