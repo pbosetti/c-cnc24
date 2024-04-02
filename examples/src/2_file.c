@@ -44,29 +44,32 @@ int main(int argc, char** argv) {
     filename = argv[1];
     fprintf(stdout, "My filename is: %s\n", filename);
 
-    // 3. Open and write to this file */
-    FILE* f = fopen(filename, "w"); // w=write, r=read 
+    // Lets open a scope using {
+    {
+        // 3. Open and write to this file */
+        FILE* f = fopen(filename, "w"); // w=write, r=read 
 
-    // 4. Check if file is open
-    if(!f) {
-        fprintf(stderr, "Filaname: %s is not open!\n", filename);
-        app_error = ERROR_OPEN;
-        return app_error;
+        // 4. Check if file is open
+        if(!f) {
+            fprintf(stderr, "Filaname: %s is not open!\n", filename);
+            app_error = ERROR_OPEN;
+            return app_error;
+        }
+        
+        // 5. Lets write something 
+        fprintf(f, "I'm a line\n");
+        fprintf(f, "I'm another line\n");
+        fprintf(f, "The pi value is: %f\n", 3.14159f);
+
+        // 6. Close the file 
+        fclose(f);
     }
 
-    // 5. Lets write something 
-    fprintf(f, "I'm a line\n");
-    fprintf(f, "I'm another line\n");
-    fprintf(f, "The pi value is: %f\n", 3.14159f);
-
-    // 6. Close the file 
-    fclose(f);
-
     // 7. Lets now read the same file
-    FILE* f1 = fopen(filename, "r");
+    FILE* f = fopen(filename, "r");
 
     // 8. Check if file is open
-    if(!f1) {
+    if(!f) {
         fprintf(stderr, "Filaname: %s is not open!\n", filename);
         app_error = ERROR_OPEN;
         return app_error;
@@ -75,12 +78,12 @@ int main(int argc, char** argv) {
     // 9. Read file line by line 
     fprintf(stdout, "File content:\n");
     char buffer[BUFFER_LENGTH]; // Used to store tmp file line
-    while(fgets(buffer, BUFFER_LENGTH, f1)) {
+    while(fgets(buffer, BUFFER_LENGTH, f)) {
         fprintf(stdout, "%s", buffer);
     }
 
     // 10. Close the file
-    fclose(f1);
+    fclose(f);
 
 end:
     return app_error;

@@ -7,8 +7,9 @@
 #include <string.h>
 
 // Macros section
-#define CHAR_ARR_LENGTH (12U)   // Preprocessor constant
-#define _2_POW_N(n) (1U << (n)) // Preprocessor basic math operation
+#define CHAR_ARR_LENGTH (12U)     // Preprocessor constant
+#define _2_POW_N(n) (1U << (n))   // Preprocessor basic math operation
+#define COMPILE_SWITCH_OPTION (0) // 0=char* , 1=char[]
 
 // MAIN FUNCTION
 // The mandatory main function must:
@@ -84,13 +85,21 @@ int main(int argc, char* argv[]) {
     printf("The range of char is: [%d, %d]\n", CHAR_MIN, CHAR_MAX);
 
     printf("\nString[]\n");
+#if (COMPILE_SWITCH_OPTION == 1)
     // Char[] or strings
-    // char* my_str = "Pluto"; // String as pointer to the first character
     char my_str[CHAR_ARR_LENGTH] = "Pippo"; // String with defined size
     printf("Size of char[] is: %lu [bytes]\n", sizeof(my_str));
     printf("String lenght is: %lu\n", strlen(my_str));
     printf("My string content is: %s\n", my_str);
-    
+    printf("First char is: %c\n", my_str[0]);
+#else
+    char* my_str = "Pluto"; // String as pointer to the first character
+    printf("Size of char* is: %lu [bytes]\n", sizeof(*my_str));
+    printf("String lenght is: %lu\n", strlen(my_str));
+    printf("My string content is: %s\n", my_str);
+    printf("First char is: %c\n", (*my_str));
+#endif /* COMPILE_SWITCH_OPTION */
+
     // String print
     printf("String content:\n");
     printf("Chars: ");
