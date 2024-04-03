@@ -1,0 +1,20 @@
+// Common includes
+#include <stdio.h>
+#include <stdint.h>
+#include <stdlib.h>
+#include <string.h>
+#include <assert.h>
+#include <sys/errno.h>
+
+// LABELS
+#define VERSION "@VERSION@"
+#define BUILD_TYPE "@CMAKE_BUILD_TYPE@"
+
+//Custom data types
+typedef double data_t;
+
+typedef enum {
+  NO_ERR = 0,
+  UNKNOWN_ERR
+} ccnc_error_t;
+
