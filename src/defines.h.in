@@ -10,6 +10,23 @@
 #define VERSION "@VERSION@"
 #define BUILD_TYPE "@CMAKE_BUILD_TYPE@"
 
+// Colors
+// printf(BRED "This is in bold red" CRESET " this is back to normal");
+
+#define BLK "\e[0;30m"
+#define RED "\e[0;31m"
+#define GRN "\e[0;32m"
+#define YEL "\e[0;33m"
+#define BLU "\e[0;34m"
+
+#define BBLK "\e[1;30m"
+#define BRED "\e[1;31m"
+#define BGRN "\e[1;32m"
+#define BYEL "\e[1;33m"
+#define BBLU "\e[1;34m"
+
+#define CRESET "\e[0m"
+
 //Custom data types
 typedef double data_t;
 
@@ -18,3 +35,8 @@ typedef enum {
   UNKNOWN_ERR
 } ccnc_error_t;
 
+// Macro functions
+
+#define eprintf(m, ...) fprintf(stderr, BRED "*** ERROR: " CRESET m, ##__VA_ARGS__)
+
+#define wprintf(m, ...) fprintf(stderr, BYEL "*** WARNING: " CRESET m, ##__VA_ARGS__)

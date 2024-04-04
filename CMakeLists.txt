@@ -17,6 +17,7 @@ endif()
 set(CMAKE_C_STANDARD 11)
 set(SOURCE_DIR ${CMAKE_CURRENT_LIST_DIR}/src)
 set(MAIN_DIR ${SOURCE_DIR}/main)
+add_compile_definitions(_GNU_SOURCE)
 file(GLOB LIB_SOURCES ${SOURCE_DIR}/*.c)
 message(STATUS "Library source files: ${LIB_SOURCES}")
 
@@ -24,4 +25,11 @@ message(STATUS "Library source files: ${LIB_SOURCES}")
 configure_file(${SOURCE_DIR}/defines.h.in ${SOURCE_DIR}/defines.h)
 
 # Target
+
+# static library
 add_library(ccnc STATIC ${LIB_SOURCES})
+
+# Test executables
+add_executable(point_test ${SOURCE_DIR}/point.c)
+target_compile_definitions(point_test PUBLIC POINT_MAIN)
+target_link_libraries(point_test m)
