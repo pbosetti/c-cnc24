@@ -33,3 +33,7 @@ add_library(ccnc STATIC ${LIB_SOURCES})
 add_executable(point_test ${SOURCE_DIR}/point.c)
 target_compile_definitions(point_test PUBLIC POINT_MAIN)
 target_link_libraries(point_test m)
+
+add_executable(machine_test ${LIB_SOURCES})
+target_compile_definitions(machine_test PUBLIC MACHINE_MAIN)
+target_link_libraries(machine_test m)

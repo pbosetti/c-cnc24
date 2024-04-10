@@ -85,7 +85,7 @@ machine_t *machine_new(char const *config_path) {
 
   // 4. Extract values from the INI file =======================================
   toml_datum_t d;
-  toml_table_t *ccnc = toml_table_in(conf, "C_CNC");
+  toml_table_t *ccnc = toml_table_in(conf, "C-CNC");
   if (!ccnc) {
     eprintf("Missing mandatory section [C-CNC]\n");
     free(m);
@@ -120,13 +120,74 @@ machine_t *machine_new(char const *config_path) {
   return m;
 }
 
-void machine_free(machine_t *m) {}
+void machine_free(machine_t *m) {
+  assert(m);
+  if (m->zero) point_free(m->zero);
+  if (m->position) point_free(m->position);
+  if (m->setpoint) point_free(m->setpoint);
+  free(m);
+  m = NULL;
+}
 
 
 /* ACCESSORS ******************************************************************/
+
+#define machine_getter(typ, par)                                               \
+  typ machine_##par(machine_t const *m) {                                      \
+    assert(m);                                                                 \
+    return m->par;                                                             \
+  }
+
+machine_getter(data_t, A);
+machine_getter(data_t, tq);
+machine_getter(data_t, max_error);
+machine_getter(data_t, error);
+machine_getter(data_t, fmax);
+machine_getter(point_t *, zero);
+machine_getter(point_t *, setpoint);
+machine_getter(point_t *, position);
 
 
 
 /* METHODS ********************************************************************/
 
-void machine_print_params(machine_t *m) {}
+void machine_print_params(machine_t const *m, FILE *out) {
+  fprintf(out, BGRN "Machine parameters:\n" CRESET);
+  fprintf(out, BBLK "C-CNC:A:         " CRESET "%f\n", m->A);
+  fprintf(out, BBLK "C-CNC:tq:        " CRESET "%f\n", m->tq);
+  fprintf(out, BBLK "C-CNC:fmax:      " CRESET "%f\n", m->fmax);
+  fprintf(out, BBLK "C-CNC:max_error: " CRESET "%f\n", m->max_error);
+  fprintf(out, BBLK "C-CNC:zero:      " CRESET "[%.3f, %.3f, %.3f]\n", point_x(m->zero), point_y(m->zero), point_z(m->zero));
+}
+
+/*
+  __  __            _     _              _            _   
+ |  \/  | __ _  ___| |__ (_)_ __   ___  | |_ ___  ___| |_ 
+ | |\/| |/ _` |/ __| '_ \| | '_ \ / _ \ | __/ _ \/ __| __|
+ | |  | | (_| | (__| | | | | | | |  __/ | ||  __/\__ \ |_ 
+ |_|  |_|\__,_|\___|_| |_|_|_| |_|\___|  \__\___||___/\__|
+                                                        
+*/
+#ifdef MACHINE_MAIN
+int main(int argc, char const **argv) {
+  // variables declatarion
+  machine_t *m = NULL;
+  // Check command line arguments
+  if (argc != 2) {
+    eprintf("Please provide the path to a, INI file! \n");
+    exit(EXIT_FAILURE);
+  }
+  // Create a new machine instance
+  m = machine_new(argv[1]);
+  if (!m) {
+    eprintf("Could not create machine object!\n");
+    exit(EXIT_FAILURE);
+  }
+  // Print machine parameters
+  machine_print_params(m, stdout);
+  // free memory
+  machine_free(m);
+  return 0;
+}
+
+#endif
