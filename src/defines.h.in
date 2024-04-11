@@ -38,11 +38,14 @@
 
 #define CRESET "\e[0m"
 
-//Custom data types
+// Custom data types
 typedef double data_t;
 
 typedef enum {
   NO_ERR = 0,
+  ALLOC_ERR,
+  NOCOMMAND_ERR,
+  ARC_ERR,
   UNKNOWN_ERR
 } ccnc_error_t;
 
