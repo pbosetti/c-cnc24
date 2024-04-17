@@ -62,7 +62,7 @@ block_t *block_next(block_t const *b);
 
 /* METHODS ********************************************************************/
 ccnc_error_t block_parse(block_t *b);
-data_t block_lambda(block_t *b, data_t time);
+data_t block_lambda(block_t *b, data_t time, data_t *speed);
 point_t *block_interpolate(block_t *b, data_t lambda);
 
 
