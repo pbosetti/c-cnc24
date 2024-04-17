@@ -251,7 +251,36 @@ data_t block_lambda(block_t *b, data_t t, data_t *s) {
   return r;
 }
 
-point_t *block_interpolate(block_t *b, data_t lambda) {}
+point_t *block_interpolate(block_t *b, data_t lambda) {
+  assert(b);
+  point_t *result = machine_setpoint(b->machine);
+  point_t *p0 = start_point(b);
+  
+  // 1. the block describes a segment
+  // x(t) = x(0) + d_x * lambda(t)
+  // y(t) = y(0) + d_y * lambda(t)
+  if (b->type == LINE) {
+    point_set_x(result, point_x(p0) + point_x(b->delta) * lambda);
+    point_set_y(result, point_y(p0) + point_y(b->delta) * lambda);
+  }
+
+  // 2. the block describes an arc
+  // x(t) = x_c + R cos(theta_0 + dtheta * lambda(t))
+  // y(t) = y_c + R sin(theta_0 + dtheta * lambda(t))
+  else if (b->type == CWA || b->type == CCWA) {
+    data_t angle = b->theta_0 + b->dtheta * lambda;
+    point_set_x(result, point_x(b->center) + b->r * cos(angle));
+    point_set_y(result, point_y(b->center) + b->r * sin(angle));
+  } else {
+    wprintf("Unexpected block type in interpolation\n");
+    return NULL;
+  }
+  point_set_z(result, point_z(p0) + point_z(b->delta) * lambda);
+  return result;
+}
+
+
+
 
 /* STATIC FUNCTIONS
  * ***********************************************************/
@@ -409,3 +438,67 @@ static ccnc_error_t block_arc(block_t *b) {
   b->r = fabs(b->r);
   return 0;
 }
+
+
+
+/*
+  ____             _                      _       
+ | __ )  ___   ___| | __  _ __ ___   __ _(_)_ __  
+ |  _ \ / _ \ / __| |/ / | '_ ` _ \ / _` | | '_ \ 
+ | |_) | (_) | (__|   <  | | | | | | (_| | | | | |
+ |____/ \___/ \___|_|\_\ |_| |_| |_|\__,_|_|_| |_|
+                                                  
+*/
+
+#ifdef BLOCK_MAIN
+
+int main(int argc, char const **argv) {
+  machine_t *m = machine_new(argv[1]);
+  block_t *b1 = NULL, *b2 = NULL, *b3 = NULL, *b4 = NULL;
+  if (!m) {
+    eprintf("Could not create the machine object\n");
+    exit(EXIT_FAILURE);
+  }
+
+  b1 = block_new("N10 G01 X90 Y90 Z100 T3 F1000", NULL, m);
+  block_parse(b1);
+
+  b2 = block_new("N20 G01 y100 S2000", b1, m);
+  block_parse(b2);
+
+  b3 = block_new("N30 G01 Y200", b2, m);
+  block_parse(b3);
+
+  b4 = block_new("N40 G00 x0 y0 z0", b3, m);
+  block_parse(b4);
+
+  block_print(b1, stderr);
+  block_print(b2, stderr);
+  block_print(b3, stderr);
+  block_print(b4, stderr);
+
+  wprintf("Interpolation of block N20 (duration: %f s)\n", block_dt(b2));
+  {
+    data_t t = 0, tq = machine_tq(m), dt = block_dt(b2);
+    data_t lambda = 0, v = 0;
+    printf("t lambda v x y z\n");
+    for (t = 0; t <= dt; t += tq) {
+      lambda = block_lambda(b2, t, &v);
+      block_interpolate(b2, lambda);
+      printf("%f %f %f %f %f %f\n", t, lambda, v, 
+        point_x(machine_setpoint(m)),
+        point_y(machine_setpoint(m)),
+        point_z(machine_setpoint(m))
+      );
+    }
+  }
+
+  block_free(b1);
+  block_free(b2);
+  block_free(b3);
+  block_free(b4);
+  machine_free(m);
+  return 0;
+}
+
+#endif // BLOCK_MAIN

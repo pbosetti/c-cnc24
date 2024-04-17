@@ -6,6 +6,7 @@
 slprj/
 *.slxc
 *.dSYM
+*.txt
 
 
 # OS generated files
