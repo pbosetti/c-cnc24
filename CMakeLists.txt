@@ -41,3 +41,7 @@ target_link_libraries(machine_test m)
 add_executable(block_test ${LIB_SOURCES})
 target_compile_definitions(block_test PUBLIC BLOCK_MAIN)
 target_link_libraries(block_test m)
+
+add_executable(program_test ${LIB_SOURCES})
+target_compile_definitions(program_test PUBLIC PROGRAM_MAIN)
+target_link_libraries(program_test m)
