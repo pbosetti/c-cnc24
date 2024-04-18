@@ -66,9 +66,10 @@ static ccnc_error_t block_set_fields(block_t *b, char cmd, char *arg);
 static void block_compute(block_t *b);
 static ccnc_error_t block_arc(block_t *b);
 static data_t quantize(data_t t, data_t tq, data_t *dq);
+static ccnc_error_t block_parse(block_t *b);
 
 /* LIFECYCLE ******************************************************************/
-block_t *block_new(char const *line, block_t *prev, machine_t *machine) {
+block_t *block_new(char const *line, block_t *prev, machine_t const *machine) {
   assert(line);
   block_t *b = (block_t *)malloc(sizeof(block_t));
   if (!b) {
@@ -103,6 +104,10 @@ block_t *block_new(char const *line, block_t *prev, machine_t *machine) {
   b->line = strdup(line);
   if (!b->line) {
     eprintf("Could not allcate memory for G-code string\n");
+    goto fail;
+  }
+  if (block_parse(b) != NO_ERR) {
+    eprintf("Could not parse block\n");
     goto fail;
   }
   return b;
@@ -161,61 +166,6 @@ block_getter(point_t *, target, target);
 block_getter(block_t *, next, next);
 
 /* METHODS ********************************************************************/
-
-// "N01 G00 Z1000 Y500.10 T25 S5000 X123.321"
-ccnc_error_t block_parse(block_t *b) {
-  assert(b);
-  char *word, *line, *to_free;
-  ccnc_error_t error = NO_ERR;
-  point_t *p0;
-
-  to_free = line = strdup(b->line);
-  if (!line) {
-    eprintf("Could not duplicate G-code line %s\n", b->line);
-    return ALLOC_ERR;
-  }
-
-  // Tokenization
-  while ((word = strsep(&line, " ")) != NULL) {
-    // word[0] is the G-code command
-    // word + 1 is the argument
-    error = block_set_fields(b, toupper(word[0]), word + 1);
-    if (error != NO_ERR)
-      break;
-  }
-  free(to_free);
-
-  // Inherit coords from prev block
-  p0 = start_point(b);
-  point_modal(p0, b->target);
-  point_delta(p0, b->target, b->delta);
-  b->length = point_dist(p0, b->target);
-
-  // Deal with motion blocks
-  switch (b->type) {
-  case LINE: // G01
-    b->acc = machine_A(b->machine);
-    b->arc_feedrate = b->feedrate;
-    block_compute(b);
-    break;
-  case CWA:  // G02
-  case CCWA: // G03
-    if (block_arc(b)) {
-      wprintf("Could not calculate arc parameters\n");
-      error = ARC_ERR;
-      break;
-    }
-    b->arc_feedrate = MIN(
-        b->feedrate,
-        pow(3.0 / 4.0 * pow(machine_A(b->machine), 2) * pow(b->r, 2), 0.25) *
-            60);
-    block_compute(b);
-    break;
-  default:
-    break;
-  }
-  return error;
-}
 
 data_t block_lambda(block_t *b, data_t t, data_t *s) {
   assert(b);
@@ -279,8 +229,10 @@ point_t *block_interpolate(block_t *b, data_t lambda) {
   return result;
 }
 
-
-
+point_t *block_interpolate_t(block_t *b, data_t t, data_t *lambda, data_t *s) {
+  *lambda = block_lambda(b, t, s);
+  return block_interpolate(b, *lambda);
+}
 
 /* STATIC FUNCTIONS
  * ***********************************************************/
@@ -288,6 +240,66 @@ point_t *block_interpolate(block_t *b, data_t lambda) {
 static point_t *start_point(block_t const *b) {
   assert(b);
   return b->prev ? b->prev->target : machine_zero(b->machine);
+}
+
+// "N01 G00 Z1000 Y500.10 T25 S5000 X123.321"
+static ccnc_error_t block_parse(block_t *b) {
+  assert(b);
+  char *word, *line, *to_free;
+  ccnc_error_t error = NO_ERR;
+  point_t *p0;
+
+  to_free = line = strdup(b->line);
+  if (!line) {
+    eprintf("Could not duplicate G-code line %s\n", b->line);
+    return ALLOC_ERR;
+  }
+
+  // Tokenization
+  // We shall remove any spaces at the end of the line before tokeinzing it
+  while ((word = strsep(&line, " ")) != NULL) {
+    // A valid command has at least two letters (e.g. G0)
+    // This also skips double spaces or spaces at the end of the line
+    if (strlen(word) < 2)
+      continue;
+    // word[0] is the G-code command
+    // word + 1 is the argument
+    error = block_set_fields(b, toupper(word[0]), word + 1);
+    if (error != NO_ERR)
+      break;
+  }
+  free(to_free);
+
+  // Inherit coords from prev block
+  p0 = start_point(b);
+  point_modal(p0, b->target);
+  point_delta(p0, b->target, b->delta);
+  b->length = point_dist(p0, b->target);
+
+  // Deal with motion blocks
+  switch (b->type) {
+  case LINE: // G01
+    b->acc = machine_A(b->machine);
+    b->arc_feedrate = b->feedrate;
+    block_compute(b);
+    break;
+  case CWA:  // G02
+  case CCWA: // G03
+    if (block_arc(b)) {
+      wprintf("Could not calculate arc parameters\n");
+      error = ARC_ERR;
+      break;
+    }
+    b->arc_feedrate = MIN(
+        b->feedrate,
+        pow(3.0 / 4.0 * pow(machine_A(b->machine), 2) * pow(b->r, 2), 0.25) *
+            60);
+    block_compute(b);
+    break;
+  default:
+    break;
+  }
+  return error;
 }
 
 static ccnc_error_t block_set_fields(block_t *b, char cmd, char *arg) {
@@ -331,7 +343,7 @@ static ccnc_error_t block_set_fields(block_t *b, char cmd, char *arg) {
     b->tool = atol(arg);
     break;
   default:
-    wprintf("Unsupported G-code command %c\n", cmd);
+    wprintf("Unsupported G-code command \"%c\"\n", cmd);
     return NOCOMMAND_ERR;
   }
   if (b->r && (b->i || b->j)) {
@@ -355,7 +367,7 @@ static void block_compute(block_t *b) {
   data_t f_m, l;
 
   A = b->acc;
-  f_m = b->arc_feedrate;
+  f_m = b->arc_feedrate / 60.0;
   l = b->length;
   dt_1 = f_m / A;
   dt_2 = dt_1;
@@ -418,6 +430,7 @@ static ccnc_error_t block_arc(block_t *b) {
     r2 = hypot(xf - xc, yf - yc);
     if (fabs(r - r2) > machine_error(b->machine)) {
       fprintf(stderr, "Arc endpoints mismatch error (%f)\n", r - r2);
+      block_print(b, stderr);
       return 1;
     }
     b->r = r;
@@ -461,16 +474,9 @@ int main(int argc, char const **argv) {
   }
 
   b1 = block_new("N10 G01 X90 Y90 Z100 T3 F1000", NULL, m);
-  block_parse(b1);
-
   b2 = block_new("N20 G01 y100 S2000", b1, m);
-  block_parse(b2);
-
   b3 = block_new("N30 G01 Y200", b2, m);
-  block_parse(b3);
-
   b4 = block_new("N40 G00 x0 y0 z0", b3, m);
-  block_parse(b4);
 
   block_print(b1, stderr);
   block_print(b2, stderr);
@@ -482,9 +488,8 @@ int main(int argc, char const **argv) {
     data_t t = 0, tq = machine_tq(m), dt = block_dt(b2);
     data_t lambda = 0, v = 0;
     printf("t lambda v x y z\n");
-    for (t = 0; t <= dt; t += tq) {
-      lambda = block_lambda(b2, t, &v);
-      block_interpolate(b2, lambda);
+    for (t = 0; t - dt < tq/10.0; t += tq) {
+      block_interpolate_t(b2, t, &lambda, &v);
       printf("%f %f %f %f %f %f\n", t, lambda, v, 
         point_x(machine_setpoint(m)),
         point_y(machine_setpoint(m)),

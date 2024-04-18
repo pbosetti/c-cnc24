@@ -46,6 +46,8 @@ typedef enum {
   ALLOC_ERR,
   NOCOMMAND_ERR,
   ARC_ERR,
+  FILE_ERR,
+  PARSE_ERR,
   UNKNOWN_ERR
 } ccnc_error_t;
 

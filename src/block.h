@@ -42,7 +42,7 @@ typedef enum {
 */
 
 /* LIFECYCLE ******************************************************************/
-block_t *block_new(char const *line, block_t *prev, machine_t *machine);
+block_t *block_new(char const *line, block_t *prev, machine_t const *machine);
 void block_free(block_t *b);
 void block_print(block_t const *b, FILE *out);
 
@@ -61,9 +61,9 @@ block_t *block_next(block_t const *b);
 
 
 /* METHODS ********************************************************************/
-ccnc_error_t block_parse(block_t *b);
 data_t block_lambda(block_t *b, data_t time, data_t *speed);
 point_t *block_interpolate(block_t *b, data_t lambda);
+point_t *block_interpolate_t(block_t *b, data_t time, data_t *lambda, data_t *speed);
 
 
 
