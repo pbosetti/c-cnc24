@@ -153,7 +153,7 @@ machine_t *machine_new(char const *config_path) {
   T_READ_S(d, m, mqtt, sub_topic);
 
   // Initialize MQTT library
-  if (msquitto_lib_init() != MOSQ_ERR_SUCCESS) {
+  if (mosquitto_lib_init() != MOSQ_ERR_SUCCESS) {
     eprintf("Could not initialize mosquitto library\n");
     machine_free(m);
     return NULL;
