@@ -32,10 +32,10 @@ docker run -it --rm -p1883:1883 -v"${PWD}/mosquitto.conf:/mosquitto/config/mosqu
 
 Note that that the `mosquitto.conf` file must be in the current directory.
 
-As a shortcut, you can simply run the script `broker_start.sh` in this folder:
+As a shortcut, you can simply run the script `broker_start` in this folder:
 
 ```bash
-./broker_start.sh
+./broker_start
 ```
 
 Once you are done, you can stop the broker with the following Docker command:

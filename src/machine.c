@@ -9,6 +9,7 @@
 
 #include "machine.h"
 #include "toml.h"
+#include <mqtt_protocol.h>
 
 /*
   ____        __ _       _ _   _
@@ -18,6 +19,7 @@
  |____/ \___|_| |_|_| |_|_|\__|_|\___/|_| |_|___/
 
 */
+#define BUFLEN 1024
 
 typedef struct machine {
   data_t A;                     // Maximum acceleration (m/s/s)
@@ -26,9 +28,15 @@ typedef struct machine {
   data_t fmax;                  // Maximum feedrate (mm/min)
   point_t *zero;                // Initial machine position
   point_t *setpoint, *position; // Setpoint and actual position
+  /* MQTT SECTION */
+  char broker_address[BUFLEN];
+  int broker_port;
+  char pub_topc[BUFLEN];
+  char sub_topc[BUFLEN];
+  char msg_buffer[BUFLEN];
+  struct mosquitto *mqt;
+  struct mosquitto_message *msg;
 } machine_t;
-
-#define BUFLEN 1024
 
 /*
   _____                 _   _
@@ -88,10 +96,10 @@ machine_t *machine_new(char const *config_path) {
   toml_table_t *ccnc = toml_table_in(conf, "C-CNC");
   if (!ccnc) {
     eprintf("Missing mandatory section [C-CNC]\n");
-    free(m);
+    machine_free(m);
     return NULL;
   }
-  
+
   // We use a macro function for repetitive tasks
 #define T_READ_D(d, machine, tab, key)                                         \
   d = toml_double_in(tab, #key);                                               \
@@ -101,6 +109,23 @@ machine_t *machine_new(char const *config_path) {
     machine->key = d.u.d;                                                      \
   }
 
+#define T_READ_I(d, machine, tab, key)                                         \
+  d = toml_int_in(tab, #key);                                                  \
+  if (!d.ok) {                                                                 \
+    wprintf("Missing key %s:%s, using default\n", toml_table_key(tab), #key);  \
+  } else {                                                                     \
+    machine->key = d.u.i;                                                      \
+  }
+
+#define T_READ_S(d, machine, tab, key)                                         \
+  d = toml_string_in(tab, #key);                                               \
+  if (!d.ok) {                                                                 \
+    wprintf("Missing key %s:%s, using default\n", toml_table_key(tab), #key);  \
+  } else {                                                                     \
+    strncpy(machine->key, d.u.s, BUFLEN);                                      \
+  }
+
+  // Reading the C-CNC section
   T_READ_D(d, m, ccnc, A);
   T_READ_D(d, m, ccnc, max_error);
   T_READ_D(d, m, ccnc, tq);
@@ -115,6 +140,25 @@ machine_t *machine_new(char const *config_path) {
                   toml_double_at(point, 1).u.d, toml_double_at(point, 2).u.d);
   }
 
+  // read the MQTT section
+  toml_table_t *mqtt = toml_table_in(conf, "MQTT");
+  if (!mqtt) {
+    eprintf("Missing MQTT section\n");
+    machine_free(m);
+    return NULL;
+  }
+  T_READ_S(d, m, mqtt, broker_address);
+  T_READ_I(d, m, mqtt, broker_port);
+  T_READ_S(d, m, mqtt, pub_topic);
+  T_READ_S(d, m, mqtt, sub_topic);
+
+  // Initialize MQTT library
+  if (msquitto_lib_init() != MOSQ_ERR_SUCCESS) {
+    eprintf("Could not initialize mosquitto library\n");
+    machine_free(m);
+    return NULL;
+  }
+
   // 5. Clean memory and return ================================================
   toml_free(conf);
   return m;
@@ -122,13 +166,15 @@ machine_t *machine_new(char const *config_path) {
 
 void machine_free(machine_t *m) {
   assert(m);
-  if (m->zero) point_free(m->zero);
-  if (m->position) point_free(m->position);
-  if (m->setpoint) point_free(m->setpoint);
+  if (m->zero)
+    point_free(m->zero);
+  if (m->position)
+    point_free(m->position);
+  if (m->setpoint)
+    point_free(m->setpoint);
   free(m);
   m = NULL;
 }
-
 
 /* ACCESSORS ******************************************************************/
 
@@ -147,8 +193,6 @@ machine_getter(point_t *, zero);
 machine_getter(point_t *, setpoint);
 machine_getter(point_t *, position);
 
-
-
 /* METHODS ********************************************************************/
 
 void machine_print_params(machine_t const *m, FILE *out) {
@@ -157,16 +201,21 @@ void machine_print_params(machine_t const *m, FILE *out) {
   fprintf(out, BBLK "C-CNC:tq:        " CRESET "%f\n", m->tq);
   fprintf(out, BBLK "C-CNC:fmax:      " CRESET "%f\n", m->fmax);
   fprintf(out, BBLK "C-CNC:max_error: " CRESET "%f\n", m->max_error);
-  fprintf(out, BBLK "C-CNC:zero:      " CRESET "[%.3f, %.3f, %.3f]\n", point_x(m->zero), point_y(m->zero), point_z(m->zero));
+  fprintf(out, BBLK "C-CNC:zero:      " CRESET "[%.3f, %.3f, %.3f]\n",
+          point_x(m->zero), point_y(m->zero), point_z(m->zero));
+  fprintf(out, BBLK "MQTT:broker_addr: " CRESET "%s\n", m->broker_address);
+  fprintf(out, BBLK "MQTT:broker_port: " CRESET "%d\n", m->broker_port);
+  fprintf(out, BBLK "MQTT:pub_topic: " CRESET "%s\n", m->pub_topc);
+  fprintf(out, BBLK "MQTT:sub_topic: " CRESET "%s\n", m->sub_topc);
 }
 
 /*
-  __  __            _     _              _            _   
- |  \/  | __ _  ___| |__ (_)_ __   ___  | |_ ___  ___| |_ 
+  __  __            _     _              _            _
+ |  \/  | __ _  ___| |__ (_)_ __   ___  | |_ ___  ___| |_
  | |\/| |/ _` |/ __| '_ \| | '_ \ / _ \ | __/ _ \/ __| __|
- | |  | | (_| | (__| | | | | | | |  __/ | ||  __/\__ \ |_ 
+ | |  | | (_| | (__| | | | | | | |  __/ | ||  __/\__ \ |_
  |_|  |_|\__,_|\___|_| |_|_|_| |_|\___|  \__\___||___/\__|
-                                                        
+
 */
 #ifdef MACHINE_MAIN
 int main(int argc, char const **argv) {
@@ -189,5 +238,40 @@ int main(int argc, char const **argv) {
   machine_free(m);
   return 0;
 }
+
+ccnc_error_t machine_connect(machine_t *m, machine_on_message callback) {
+  assert(m);
+  m->mqt = mosquitto_new(NULL, 1, m);
+  if (!m->mqt) {
+    eprintf("Could not create a MQTT client\n");
+    return MQTT_ERR;
+  }
+  mosquitto_connect_callback_set(m->mqt, on_connect);
+  mosquitto_message_callback_set(m->mqt, on_message);
+  if (mosquitto_connect(m->mqt, m->broker_address, m->broker_port, 10) != MOSQ_ERR_SUCCESS) {
+    eprintf("Invalid broker parameters\n");
+    return MQTT_ERR;
+  }
+  return NO_ERR;
+}
+
+ccnc_error_t machine_sync(machine_t *m, int rapid) {
+
+}
+
+ccnc_error_t machine_listen_start(machine_t *m) {
+
+}
+
+ccnc_error_t machine_listen_stop(machine_t *m) {
+
+}
+
+void machine_disconnect(machine_t *m) {
+
+}
+
+
+
 
 #endif

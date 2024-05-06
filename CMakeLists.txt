@@ -20,6 +20,9 @@ set(MAIN_DIR ${SOURCE_DIR}/main)
 add_compile_definitions(_GNU_SOURCE)
 file(GLOB LIB_SOURCES ${SOURCE_DIR}/*.c)
 message(STATUS "Library source files: ${LIB_SOURCES}")
+include_directories(/usr/local/include /opt/homebrew/include)
+link_directories(/usr/local/lib /opt/homebrew/lib)
+
 
 # Configured files
 configure_file(${SOURCE_DIR}/defines.h.in ${SOURCE_DIR}/defines.h)
@@ -32,16 +35,16 @@ add_library(ccnc STATIC ${LIB_SOURCES})
 # Test executables
 add_executable(point_test ${SOURCE_DIR}/point.c)
 target_compile_definitions(point_test PUBLIC POINT_MAIN)
-target_link_libraries(point_test m)
+target_link_libraries(point_test m mosquitto)
 
 add_executable(machine_test ${LIB_SOURCES})
 target_compile_definitions(machine_test PUBLIC MACHINE_MAIN)
-target_link_libraries(machine_test m)
+target_link_libraries(machine_test m mosquitto)
 
 add_executable(block_test ${LIB_SOURCES})
 target_compile_definitions(block_test PUBLIC BLOCK_MAIN)
-target_link_libraries(block_test m)
+target_link_libraries(block_test m mosquitto)
 
 add_executable(program_test ${LIB_SOURCES})
 target_compile_definitions(program_test PUBLIC PROGRAM_MAIN)
-target_link_libraries(program_test m)
+target_link_libraries(program_test m mosquitto)

@@ -11,6 +11,7 @@
 
 #include "defines.h"
 #include "point.h"
+#include <mosquitto.h>
 
 /*
   ____            _                 _   _                 
@@ -51,6 +52,16 @@ point_t *machine_position(machine_t const *m);
 
 /* METHODS ********************************************************************/
 void machine_print_params(machine_t const *m, FILE *out);
+
+/* MQTT related */
+
+typedef void (* machine_on_message)(struct mosquitto *, void *, const struct mosquitto_message *)
+
+ccnc_error_t machine_connect(machine_t *m, machine_on_message callback);
+ccnc_error_t machine_sync(machine_t *m, int rapid);
+ccnc_error_t machine_listen_start(machine_t *m);
+ccnc_error_t machine_listen_stop(machine_t *m);
+void machine_disconnect(machine_t *m);
 
 
 

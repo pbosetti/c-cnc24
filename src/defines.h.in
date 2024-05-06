@@ -48,6 +48,7 @@ typedef enum {
   ARC_ERR,
   FILE_ERR,
   PARSE_ERR,
+  MQTT_ERR,
   UNKNOWN_ERR
 } ccnc_error_t;
 
