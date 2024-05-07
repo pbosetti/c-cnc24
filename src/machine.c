@@ -92,15 +92,11 @@ machine_t *machine_new(char const *config_path) {
   }
 
   // 4. Extract values from the INI file =======================================
-  toml_datum_t d;
-  toml_table_t *ccnc = toml_table_in(conf, "C-CNC");
-  if (!ccnc) {
-    eprintf("Missing mandatory section [C-CNC]\n");
-    machine_free(m);
-    return NULL;
-  }
 
   // We use a macro function for repetitive tasks
+  // note that macros can be defined anywhere, including within functions
+
+  // read a double
 #define T_READ_D(d, machine, tab, key)                                         \
   d = toml_double_in(tab, #key);                                               \
   if (!d.ok) {                                                                 \
@@ -109,6 +105,7 @@ machine_t *machine_new(char const *config_path) {
     machine->key = d.u.d;                                                      \
   }
 
+  // Read an integer
 #define T_READ_I(d, machine, tab, key)                                         \
   d = toml_int_in(tab, #key);                                                  \
   if (!d.ok) {                                                                 \
@@ -117,6 +114,7 @@ machine_t *machine_new(char const *config_path) {
     machine->key = d.u.i;                                                      \
   }
 
+  // Read a string
 #define T_READ_S(d, machine, tab, key)                                         \
   d = toml_string_in(tab, #key);                                               \
   if (!d.ok) {                                                                 \
@@ -126,12 +124,19 @@ machine_t *machine_new(char const *config_path) {
   }
 
   // Reading the C-CNC section
+  toml_datum_t d;
+  toml_table_t *ccnc = toml_table_in(conf, "C-CNC");
+  if (!ccnc) {
+    eprintf("Missing mandatory section [C-CNC]\n");
+    machine_free(m);
+    return NULL;
+  }
   T_READ_D(d, m, ccnc, A);
   T_READ_D(d, m, ccnc, max_error);
   T_READ_D(d, m, ccnc, tq);
   T_READ_D(d, m, ccnc, fmax);
 
-  // read arrays:
+  // Arrays must be read in a different way (using toml_double_at()):
   toml_array_t *point = toml_array_in(ccnc, "zero");
   if (!point) {
     wprintf("Missing C-CNC:zero, using default\n");
@@ -209,6 +214,37 @@ void machine_print_params(machine_t const *m, FILE *out) {
   fprintf(out, BBLK "MQTT:sub_topic: " CRESET "%s\n", m->sub_topc);
 }
 
+// Connect with the broker and setup callbacks
+ccnc_error_t machine_connect(machine_t *m, machine_on_message callback) {
+  assert(m);
+  m->mqt = mosquitto_new(NULL, 1, m);
+  if (!m->mqt) {
+    eprintf("Could not create a MQTT client\n");
+    return MQTT_ERR;
+  }
+  mosquitto_connect_callback_set(m->mqt, on_connect);
+  mosquitto_message_callback_set(m->mqt, on_message);
+  if (mosquitto_connect(m->mqt, m->broker_address, m->broker_port, 10) !=
+      MOSQ_ERR_SUCCESS) {
+    eprintf("Invalid broker parameters\n");
+    return MQTT_ERR;
+  }
+  return NO_ERR;
+}
+
+// synchronize the machine object setpoint with the physical machine
+// i.e. publish m->setpoint via MQTT
+ccnc_error_t machine_sync(machine_t *m, int rapid) {}
+
+// enable receiving MQTT messages from physical machine
+ccnc_error_t machine_listen_start(machine_t *m) {}
+
+// disable receiving MQTT messages from physical machine
+ccnc_error_t machine_listen_stop(machine_t *m) {}
+
+// Disconnect from MQTT broker and stop network operations
+void machine_disconnect(machine_t *m) {}
+
 /*
   __  __            _     _              _            _
  |  \/  | __ _  ___| |__ (_)_ __   ___  | |_ ___  ___| |_
@@ -238,40 +274,5 @@ int main(int argc, char const **argv) {
   machine_free(m);
   return 0;
 }
-
-ccnc_error_t machine_connect(machine_t *m, machine_on_message callback) {
-  assert(m);
-  m->mqt = mosquitto_new(NULL, 1, m);
-  if (!m->mqt) {
-    eprintf("Could not create a MQTT client\n");
-    return MQTT_ERR;
-  }
-  mosquitto_connect_callback_set(m->mqt, on_connect);
-  mosquitto_message_callback_set(m->mqt, on_message);
-  if (mosquitto_connect(m->mqt, m->broker_address, m->broker_port, 10) != MOSQ_ERR_SUCCESS) {
-    eprintf("Invalid broker parameters\n");
-    return MQTT_ERR;
-  }
-  return NO_ERR;
-}
-
-ccnc_error_t machine_sync(machine_t *m, int rapid) {
-
-}
-
-ccnc_error_t machine_listen_start(machine_t *m) {
-
-}
-
-ccnc_error_t machine_listen_stop(machine_t *m) {
-
-}
-
-void machine_disconnect(machine_t *m) {
-
-}
-
-
-
 
 #endif

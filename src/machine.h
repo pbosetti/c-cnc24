@@ -55,6 +55,7 @@ void machine_print_params(machine_t const *m, FILE *out);
 
 /* MQTT related */
 
+// typedef for on_message callback signature
 typedef void (* machine_on_message)(struct mosquitto *, void *, const struct mosquitto_message *)
 
 ccnc_error_t machine_connect(machine_t *m, machine_on_message callback);
