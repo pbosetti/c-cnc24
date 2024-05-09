@@ -243,7 +243,11 @@ ccnc_error_t machine_connect(machine_t *m, machine_on_message callback) {
     return MQTT_ERR;
   }
   mosquitto_connect_callback_set(m->mqt, on_connect);
-  mosquitto_message_callback_set(m->mqt, on_message);
+  if (!callback)
+    mosquitto_message_callback_set(m->mqt, on_message);
+  else
+    mosquitto_message_callback_set(m->mqt, callback);
+
   if (mosquitto_connect(m->mqt, m->broker_address, m->broker_port, 10) !=
       MOSQ_ERR_SUCCESS) {
     eprintf("Invalid broker parameters\n");

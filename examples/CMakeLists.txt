@@ -40,3 +40,6 @@ add_executable(7_timed_loop ${SOURCE_DIR}/7_timed_loop.c ${SOURCE_DIR}/stats.c)
 target_link_libraries(7_timed_loop m)
 add_executable(8_timed_loop ${SOURCE_DIR}/8_timed_loop.c ${SOURCE_DIR}/stats.c)
 target_link_libraries(8_timed_loop m)
+
+add_executable(9_fsm ${SOURCE_DIR}/fsm.c)
+target_compile_definitions(9_fsm PUBLIC TEST_MAIN)

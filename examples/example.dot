@@ -1,0 +1,11 @@
+digraph "Example" {
+  # States definitions
+  init [peripheries=2]
+  run
+  stop [peripheries=2]
+
+  # Transition definitions
+  init -> run
+  run -> run
+  run -> stop [label="disable"]
+}
