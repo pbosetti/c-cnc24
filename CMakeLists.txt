@@ -7,6 +7,7 @@ project(C-CNC VERSION ${VERSION} LANGUAGES C)
 if(CMAKE_BUILD_TYPE MATCHES "Debug")
   message(NOTICE "Debug build, enabling all warnings")
   add_compile_options(-Wall)
+  add_compile_definitions(DEBUG)
 elseif(CMAKE_BUILD_TYPE MATCHES "Release")
   message(STATUS "Release build")
 else()
@@ -30,7 +31,7 @@ configure_file(${SOURCE_DIR}/defines.h.in ${SOURCE_DIR}/defines.h)
 # Target
 
 # static library
-add_library(ccnc STATIC ${LIB_SOURCES})
+add_library(ccnc_lib STATIC ${LIB_SOURCES})
 
 # Test executables
 add_executable(point_test ${SOURCE_DIR}/point.c)
@@ -48,3 +49,6 @@ target_link_libraries(block_test m mosquitto)
 add_executable(program_test ${LIB_SOURCES})
 target_compile_definitions(program_test PUBLIC PROGRAM_MAIN)
 target_link_libraries(program_test m mosquitto)
+
+add_executable(ccnc ${MAIN_DIR}/ccnc.c)
+target_link_libraries(ccnc ccnc_lib m mosquitto)

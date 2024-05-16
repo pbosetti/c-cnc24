@@ -56,7 +56,13 @@ typedef enum {
 
 #define eprintf(m, ...) fprintf(stderr, BRED "*** ERROR: " CRESET m, ##__VA_ARGS__)
 
+#ifdef DEBUG
 #define wprintf(m, ...) fprintf(stderr, BYEL "*** WARNING: " CRESET m, ##__VA_ARGS__)
 
+#define iprintf(m, ...) fprintf(stderr, BGRN "*** INFO: " CRESET m, ##__VA_ARGS__)
+#else
+#define wprintf(...)
+#define iprintf(...)
+#endif
 
 #endif // DEFINES_H

@@ -15,6 +15,9 @@ Functions and types have been generated with prefix "ccnc_"
 
 #include <syslog.h>
 #include <termios.h>
+#include <unistd.h>
+#include <math.h>
+#include <sys/param.h>
 #include "fsm.h"
 #include "block.h"
 #include "point.h"
@@ -97,7 +100,7 @@ ccnc_state_t ccnc_do_init(ccnc_state_data_t *data) {
   
   // Steps:
   // 1. step: print out software info
-  wprintf("C-CNC version %s, %s\n", VERSION, BUILD_TYPE);
+  fprintf(stderr, GRN "C-CNC version %s, %s\n" CRESET, VERSION, BUILD_TYPE);
 
   // 2. connect to the machine
   if (!data->machine) {
@@ -211,16 +214,16 @@ ccnc_state_t ccnc_do_stop(ccnc_state_data_t *data) {
   signal(SIGINT, SIG_DFL);
 
   // 2. disconnect
-  wprintf("Disconnecting...\n");
+  iprintf("Disconnecting...\n");
   if (data->machine) {
     machine_disconnect(data->machine);
   }
 
   // 3. clean up resources
-  wprintf("Cleaning up...\n");
+  iprintf("Cleaning up...\n");
   if (data->program) program_free(data->program);
   if (data->machine) machine_free(data->machine);
-  wprintf("done.\n");
+  iprintf("done.\n");
 
   
   switch (next_state) {
@@ -270,8 +273,8 @@ ccnc_state_t ccnc_do_load_block(ccnc_state_data_t *data) {
     break;
   }
 
-  // 3. Reset block time
-  data->t_blk = 0.0;
+  // 3. increment the total time by one step
+  data->t_tot += machine_tq(data->machine);
   
 next_state:
   switch (next_state) {
@@ -364,15 +367,17 @@ ccnc_state_t ccnc_do_rapid_motion(ccnc_state_data_t *data) {
   ccnc_state_t next_state = CCNC_NO_CHANGE;
   block_t *b = program_current(data->program);
   point_t *pos = machine_position(data->machine);
+  data_t duration = 0.0;
 
-  syslog(LOG_INFO, "[FSM] In state rapid_motion");
+  // syslog(LOG_INFO, "[FSM] In state rapid_motion");
 
   // Steps:
   // 1. synch the machine
   machine_sync(data->machine, 1);
 
   // 2. exit state if error is small
-  if (machine_error(data->machine) < machine_max_error(data->machine)) {
+  duration = block_length(b) / machine_fmax(data->machine) * 60.0;
+  if (machine_error(data->machine) < machine_max_error(data->machine) && data->t_blk > duration) {
     next_state = CCNC_STATE_LOAD_BLOCK;
   }
 
@@ -388,6 +393,10 @@ ccnc_state_t ccnc_do_rapid_motion(ccnc_state_data_t *data) {
   // 5. increment times
   data->t_blk += machine_tq(data->machine);
   data->t_tot += machine_tq(data->machine);
+
+  // 6. print status
+  fprintf(stderr, "\r[%5.1f%%]", fabs(1.0 - MIN(machine_error(data->machine) / block_length(b), 1.0)) * 100);
+  fflush(stderr);
   
   switch (next_state) {
     case CCNC_NO_CHANGE:
@@ -415,7 +424,7 @@ ccnc_state_t ccnc_do_interp_motion(ccnc_state_data_t *data) {
   point_t *sp = NULL;
   block_t *b = program_current(data->program);
 
-  syslog(LOG_INFO, "[FSM] In state interp_motion");
+  // syslog(LOG_INFO, "[FSM] In state interp_motion");
 
   // Steps:
   // 1. calculate lambda and intepolate
@@ -435,6 +444,10 @@ ccnc_state_t ccnc_do_interp_motion(ccnc_state_data_t *data) {
   // 6. increment times
   data->t_blk += machine_tq(data->machine);
   data->t_tot += machine_tq(data->machine);
+
+  // 7. update status
+  fprintf(stderr, "\r[%5.1f%%]", lambda * 100);
+  fflush(stderr);
   
   switch (next_state) {
     case CCNC_NO_CHANGE:
@@ -470,49 +483,72 @@ ccnc_state_t ccnc_do_interp_motion(ccnc_state_data_t *data) {
 // 1. from idle to load_block
 void ccnc_reset(ccnc_state_data_t *data) {
   syslog(LOG_INFO, "[FSM] State transition ccnc_reset");
-  /* Your Code Here */
+  data->t_blk = data->t_tot = 0.0;
+  printf("n type t_tot t_blk lambda s feedrate x y z\n");
 }
 
 // This function is called in 1 transition:
 // 1. from idle to go_to_zero
 void ccnc_begin_zero(ccnc_state_data_t *data) {
+  point_t *sp =  machine_setpoint(data->machine);
+  point_t *zero = machine_zero(data->machine);
+  char *zero_d = NULL;
   syslog(LOG_INFO, "[FSM] State transition ccnc_begin_zero");
-  /* Your Code Here */
+  machine_listen_start(data->machine);
+  point_set_xyz(sp, point_x(zero), point_y(zero), point_z(zero));
+  machine_sync(data->machine, 1);
+  point_inspect(zero, &zero_d);
+  iprintf("Going to origin point at %s\n", zero_d);
+  free(zero_d);
 }
 
 // This function is called in 1 transition:
 // 1. from load_block to rapid_motion
 void ccnc_begin_rapid(ccnc_state_data_t *data) {
+  point_t *sp = machine_setpoint(data->machine);
+  block_t *b = program_current(data->program);
+  point_t *target = block_target(b);
   syslog(LOG_INFO, "[FSM] State transition ccnc_begin_rapid");
-  /* Your Code Here */
+
+  data->t_blk = 0.0;
+  machine_listen_start(data->machine);
+  point_set_xyz(sp, point_x(target), point_y(target), point_z(target));
+  machine_sync(data->machine, 1);
+  fprintf(stderr, "[  0.0%%]");
+  fflush(stderr);
 }
 
 // This function is called in 1 transition:
 // 1. from load_block to interp_motion
 void ccnc_begin_interp(ccnc_state_data_t *data) {
   syslog(LOG_INFO, "[FSM] State transition ccnc_begin_interp");
-  /* Your Code Here */
+  data->t_blk = 0.0;
+  fprintf(stderr, "[  0.0%%]");
+  fflush(stderr);
 }
 
 // This function is called in 1 transition:
 // 1. from rapid_motion to load_block
 void ccnc_end_rapid(ccnc_state_data_t *data) {
   syslog(LOG_INFO, "[FSM] State transition ccnc_end_rapid");
-  /* Your Code Here */
+  machine_listen_stop(data->machine);
+  fprintf(stderr, "\b\b\b\b\b\b\b\b");
+  fflush(stderr);
 }
 
 // This function is called in 1 transition:
 // 1. from interp_motion to load_block
 void ccnc_end_interp(ccnc_state_data_t *data) {
   syslog(LOG_INFO, "[FSM] State transition ccnc_end_interp");
-  /* Your Code Here */
+  fprintf(stderr, "\b\b\b\b\b\b\b\b");
+  fflush(stderr);
 }
 
 // This function is called in 1 transition:
 // 1. from go_to_zero to idle
 void ccnc_end_zero(ccnc_state_data_t *data) {
   syslog(LOG_INFO, "[FSM] State transition ccnc_end_zero");
-  /* Your Code Here */
+  machine_listen_stop(data->machine);
 }
 
 

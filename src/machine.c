@@ -75,6 +75,7 @@ machine_t *machine_new(char const *config_path) {
   memset(m, 0, sizeof(*m));
   m->A = 100;
   m->max_error = 0.010;
+  m->error = 0.0;
   m->tq = 0.005;
   m->zero = point_new();
   m->setpoint = point_new();
@@ -282,7 +283,7 @@ ccnc_error_t machine_listen_start(machine_t *m) {
     eprintf("Could not subscribe to topic %s\n", m->sub_topic);
     return MQTT_ERR;
   }
-  wprintf("Subscribed to topic %s\n", m->sub_topic);
+  iprintf("Subscribed to topic %s\n", m->sub_topic);
   return NO_ERR;
 }
 
@@ -293,7 +294,7 @@ ccnc_error_t machine_listen_stop(machine_t *m) {
     eprintf("Could not unsubscribe from %s\n", m->sub_topic);
     return MQTT_ERR;
   }
-  wprintf("Unsubscribed from topic %s\n", m->sub_topic);
+  iprintf("Unsubscribed from topic %s\n", m->sub_topic);
   return NO_ERR;
 }
 
@@ -320,7 +321,7 @@ void machine_disconnect(machine_t *m) {
 static void on_connect(struct mosquitto *mqtt, void *obj, int rc) {
   machine_t *m = (machine_t *)obj;
   if (rc == CONNACK_ACCEPTED) {
-    wprintf("Connection successful to %s:%d\n", m->broker_address,
+    iprintf("Connection successful to %s:%d\n", m->broker_address,
             m->broker_port);
     if (mosquitto_subscribe(mqtt, NULL, m->sub_topic, 0) != MOSQ_ERR_SUCCESS) {
       eprintf("Could not subscribe to %s\n", m->sub_topic);
