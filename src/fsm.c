@@ -368,6 +368,7 @@ ccnc_state_t ccnc_do_rapid_motion(ccnc_state_data_t *data) {
   block_t *b = program_current(data->program);
   point_t *pos = machine_position(data->machine);
   data_t duration = 0.0;
+  data_t rel_distance = 0.0;
 
   // syslog(LOG_INFO, "[FSM] In state rapid_motion");
 
@@ -388,14 +389,15 @@ ccnc_state_t ccnc_do_rapid_motion(ccnc_state_data_t *data) {
   } 
 
   // 4. print position table
-  printf("%lu %d %f %f %f %f %f %f %f %f\n", block_n(b), block_type(b), data->t_tot, data->t_blk, 0.0, 0.0, 0.0, point_x(pos), point_y(pos), point_z(pos));
+  rel_distance = MIN(machine_error(data->machine) / block_length(b), 1);
+  printf("%03lu %02d %.3f %.3f %.3f %.3f %.1f %.3f %.3f %.3f\n", block_n(b), block_type(b), data->t_tot, data->t_blk, rel_distance, rel_distance*block_length(b), machine_fmax(data->machine), point_x(pos), point_y(pos), point_z(pos));
 
   // 5. increment times
   data->t_blk += machine_tq(data->machine);
   data->t_tot += machine_tq(data->machine);
 
   // 6. print status
-  fprintf(stderr, "\r[%5.1f%%]", fabs(1.0 - MIN(machine_error(data->machine) / block_length(b), 1.0)) * 100);
+  fprintf(stderr, "\r[%5.1f%%]", fabs(1.0 - rel_distance) * 100);
   fflush(stderr);
   
   switch (next_state) {
@@ -431,7 +433,7 @@ ccnc_state_t ccnc_do_interp_motion(ccnc_state_data_t *data) {
   sp = block_interpolate_t(b, data->t_blk, &lambda, &feedrate);
 
   // 2. print position table
-  printf("%lu %d %f %f %f %f %f %f %f %f\n", block_n(b), block_type(b), data->t_tot, data->t_blk, lambda, lambda * block_length(b), feedrate, point_x(sp), point_y(sp), point_z(sp));
+  printf("%03lu %02d %.3f %.3f %.3f %.3f %.1f %.3f %.3f %.3f\n", block_n(b), block_type(b), data->t_tot, data->t_blk, lambda, lambda * block_length(b), feedrate, point_x(sp), point_y(sp), point_z(sp));
 
   // 3. Sync machine
   machine_sync(data->machine, 0);
@@ -484,7 +486,7 @@ ccnc_state_t ccnc_do_interp_motion(ccnc_state_data_t *data) {
 void ccnc_reset(ccnc_state_data_t *data) {
   syslog(LOG_INFO, "[FSM] State transition ccnc_reset");
   data->t_blk = data->t_tot = 0.0;
-  printf("n type t_tot t_blk lambda s feedrate x y z\n");
+  printf("#n type t_tot t_blk lambda s feedrate x y z\n");
 }
 
 // This function is called in 1 transition:

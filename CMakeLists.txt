@@ -1,6 +1,6 @@
 # Minimal settings
 cmake_minimum_required(VERSION 3.15)
-set(VERSION "0.1.1")
+set(VERSION "1.0.0")
 project(C-CNC VERSION ${VERSION} LANGUAGES C)
 
 # Build mode
