@@ -46,6 +46,7 @@ typedef struct machine {
 static void on_connect(struct mosquitto *, void *, int);
 static void on_message(struct mosquitto *, void *,
                        const struct mosquitto_message *);
+static void on_disconnect(struct mosquitto *, void *, int);
 
 /*
   _____                 _   _
@@ -243,13 +244,20 @@ ccnc_error_t machine_connect(machine_t *m, machine_on_message callback) {
     eprintf("Could not create a MQTT client\n");
     return MQTT_ERR;
   }
+  // Set callbacks
+  // on_connect and on_disconnect callbacks are internally defined, i.e. 
+  // these are static functions defined in this file
   mosquitto_connect_callback_set(m->mqt, on_connect);
+  mosquitto_disconnect_callback_set(m->mqt, on_disconnect);
+  // on message is provided with a default, but the user can override it if 
+  // needed, by providing a non-null callback argument to machine_connect
   if (!callback)
     mosquitto_message_callback_set(m->mqt, on_message);
   else
     mosquitto_message_callback_set(m->mqt, callback);
 
-  if (mosquitto_connect(m->mqt, m->broker_address, m->broker_port, 10) !=
+  // Connect to the broker
+  if (mosquitto_connect(m->mqt, m->broker_address, m->broker_port, 60) !=
       MOSQ_ERR_SUCCESS) {
     eprintf("Invalid broker parameters\n");
     return MQTT_ERR;
@@ -261,15 +269,17 @@ ccnc_error_t machine_connect(machine_t *m, machine_on_message callback) {
 // i.e. publish m->setpoint via MQTT
 ccnc_error_t machine_sync(machine_t *m, int rapid) {
   assert(m && m->mqt);
+  int rc = 0;
   // Transmit a setpoint description in JSON like this:
   // {"x":1.1,"y":23.0,"z":123.0,"rapid":1}
   snprintf(m->msg_buffer, BUFLEN, "{\"x\":%f,\"y\":%f,\"z\":%f,\"rapid\":%d}",
            point_x(m->setpoint) + point_x(m->offset),
            point_y(m->setpoint) + point_y(m->offset),
            point_z(m->setpoint) + point_z(m->offset), rapid);
-  if (mosquitto_publish(m->mqt, NULL, m->pub_topic, strlen(m->msg_buffer),
-                        m->msg_buffer, 0, 0) != MOSQ_ERR_SUCCESS) {
-    eprintf("Could not send message %s\n", m->msg_buffer);
+  rc = mosquitto_publish(m->mqt, NULL, m->pub_topic, strlen(m->msg_buffer),
+                        m->msg_buffer, 0, 0);
+  if (rc != MOSQ_ERR_SUCCESS) {
+    eprintf("(code: %d) Could not send message %s\n", rc, m->msg_buffer);
     return MQTT_ERR;
   }
   mosquitto_loop(m->mqt, 1, 1);
@@ -351,6 +361,20 @@ static void on_message(struct mosquitto *mqtt, void *obj,
     point_set_z(m->position, strtod(nxt + 1, &nxt));
   } else {
     eprintf("Got unexpected subtopic %s\n", msg->topic);
+  }
+}
+
+// Reconnect to the broker in case of an unexpected disconnection
+// When the disconnection is unexpected, the reason code is non-zero
+static void on_disconnect(struct mosquitto *m, void *ud, int reason) {
+  int rc = 0;
+  if (reason) {
+    wprintf("Unexpected disconnection, reconnecting...");
+    rc = mosquitto_reconnect(m);
+    if (rc != MOSQ_ERR_SUCCESS)
+      eprintf("\n(code %d) Could not reconnect to broker\n", rc);
+    else
+      fprintf(stderr, "OK\n");
   }
 }
 
