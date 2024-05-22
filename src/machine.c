@@ -40,6 +40,7 @@ typedef struct machine {
   struct mosquitto *mqt;
   struct mosquitto_message *msg;
   int connecting;
+  data_t rt_pacing;
 } machine_t;
 
 // MQTT Callbacks:
@@ -83,6 +84,7 @@ machine_t *machine_new(char const *config_path) {
   m->position = point_new();
   m->offset = point_new();
   m->connecting = 1;
+  m->rt_pacing = 1;
   point_set_xyz(m->zero, 0, 0, 0);
   point_set_xyz(m->setpoint, 0, 0, 0);
   point_set_xyz(m->position, 0, 0, 0);
@@ -149,6 +151,7 @@ machine_t *machine_new(char const *config_path) {
   T_READ_D(d, m, ccnc, max_error);
   T_READ_D(d, m, ccnc, tq);
   T_READ_D(d, m, ccnc, fmax);
+  T_READ_D(d, m, ccnc, rt_pacing);
 
   // Arrays must be read in a different way (using toml_double_at()):
   toml_array_t *point = toml_array_in(ccnc, "zero");
@@ -215,6 +218,7 @@ machine_getter(data_t, tq);
 machine_getter(data_t, max_error);
 machine_getter(data_t, error);
 machine_getter(data_t, fmax);
+machine_getter(data_t, rt_pacing);
 machine_getter(point_t *, zero);
 machine_getter(point_t *, setpoint);
 machine_getter(point_t *, position);
@@ -230,6 +234,7 @@ void machine_print_params(machine_t const *m, FILE *out) {
   fprintf(out, BBLK "C-CNC:max_error: " CRESET "%f\n", m->max_error);
   fprintf(out, BBLK "C-CNC:zero:      " CRESET "[%.3f, %.3f, %.3f]\n",
           point_x(m->zero), point_y(m->zero), point_z(m->zero));
+  fprintf(out, BBLK "C-CNC:rt_pacing:  " CRESET "%f\n", m->rt_pacing);
   fprintf(out, BBLK "MQTT:broker_addr: " CRESET "%s\n", m->broker_address);
   fprintf(out, BBLK "MQTT:broker_port: " CRESET "%d\n", m->broker_port);
   fprintf(out, BBLK "MQTT:pub_topic: " CRESET "%s\n", m->pub_topic);

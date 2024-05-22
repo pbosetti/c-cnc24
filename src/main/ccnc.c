@@ -29,9 +29,10 @@ int main(int argc, char const **argv) {
     .program = NULL
   };
   ccnc_state_t cur_state = CCNC_STATE_INIT;
+  data_t rt_pacing = machine_rt_pacing(state_data.machine);
   // timing values (note that machine.ini has values in seconds, so we need to 
   // convert to microseconds)
-  useconds_t dt = machine_tq(state_data.machine) * 1E6;
+  useconds_t dt = machine_tq(state_data.machine) * 1E6 * rt_pacing;
   useconds_t dt_max = dt * 10;
 
   if (!state_data.machine) {

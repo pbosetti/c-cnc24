@@ -43,6 +43,7 @@ data_t machine_tq(machine_t const *m);
 data_t machine_max_error(machine_t const *m);
 data_t machine_error(machine_t const *m);
 data_t machine_fmax(machine_t const *m);
+data_t machine_rt_pacing(machine_t const *m);
 point_t *machine_zero(machine_t const *m);
 point_t *machine_setpoint(machine_t const *m);
 point_t *machine_position(machine_t const *m);
