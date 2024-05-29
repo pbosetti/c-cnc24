@@ -8,6 +8,7 @@ slprj/
 *.dSYM
 *.txt
 .venv
+*:Zone.Identifier
 usr/
 
 
