@@ -43,3 +43,5 @@ target_link_libraries(8_timed_loop m)
 
 add_executable(9_fsm ${SOURCE_DIR}/fsm.c)
 target_compile_definitions(9_fsm PUBLIC TEST_MAIN)
+
+add_executable(10_pid ${SOURCE_DIR}/10_pid.c ${SOURCE_DIR}/pid_controller.c)
