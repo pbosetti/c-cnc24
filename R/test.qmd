@@ -1,0 +1,61 @@
+---
+title: "CNCpp testing"
+author: "Paolo Bosetti"
+format: 
+  html:
+    theme: cerulean
+    cache: false
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(glue)
+library(Rcpp)
+Sys.setenv(PKG_CXXFLAGS = glue("-I{getwd()}/../usr/include -I/opt/homebrew/include"))
+Sys.setenv(PKG_LIBS = glue("-L{getwd()}/../usr/lib -L/opt/homebrew/lib -lccnc_lib -lmosquitto"))
+sourceCpp("interface.cpp", rebuild = FALSE)
+```
+
+# Testing the CNCpp library
+
+Create a program object:
+
+```{r}
+cnc <- new(CNCpp, "../machine.ini")
+cnc$version()
+```
+
+Load a program:
+```{r}
+cnc$load("../test.gcode")
+cnc$print()
+cnc$reset()
+```
+
+Run the simulation and plot:
+
+```{r}
+df <- cnc$simulate()
+```
+
+
+```{r}
+df %>% 
+  mutate(kind=cut(acc, c(-Inf, -1e-6, 1e-6, Inf), labels=c("acc", "cruise", "dec"))) %>%
+  ggplot(aes(x=t_time, y=lambda)) + 
+  geom_line(linewidth=0.2) +
+  geom_point(aes(color=kind), size=0.1) +
+  labs(x="Total time (s)")
+```
+
+
+```{r}
+df %>%
+  mutate(type=as.factor(type)) %>% 
+  ggplot(aes(x=x, y=y, color=speed)) +
+  geom_path(aes(linewidth=speed)) +
+  scale_color_viridis_b() +
+  coord_equal()
+```
+
+

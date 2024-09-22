@@ -25,3 +25,4 @@ src/defines.h
 
 # Cmake build directory and generated files
 /*build*
+.Rproj.user

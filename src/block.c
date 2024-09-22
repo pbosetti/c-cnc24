@@ -167,7 +167,7 @@ block_getter(block_t *, next, next);
 
 /* METHODS ********************************************************************/
 
-data_t block_lambda(block_t *b, data_t t, data_t *s) {
+data_t block_lambda(block_t *b, data_t t, data_t *s, data_t *acc) {
   assert(b);
   data_t r;
   data_t dt_1 = b->prof->dt_1;
@@ -180,20 +180,25 @@ data_t block_lambda(block_t *b, data_t t, data_t *s) {
   if (t < 0) {
     r = 0.0;
     *s = 0.0;
+    *acc = 0.0;
   } else if (t < dt_1) { // acceleration
     r = a * pow(t, 2) / 2.0;
     *s = a * t;
+    *acc = a;
   } else if (t < dt_1 + dt_m) { // maintenance
     r = f * (dt_1 / 2.0 + (t - dt_1));
     *s = f;
+    *acc = 0.0;
   } else if (t < dt_1 + dt_m + dt_2) { // deceleration
     data_t t_2 = dt_1 + dt_m;
     r = f * dt_1 / 2.0 + f * (dt_m + t - t_2) +
         d / 2.0 * (pow(t, 2) + pow(t_2, 2)) - d * t * t_2;
     *s = f + d * (t - t_2);
+    *acc = d;
   } else {
     r = b->prof->l;
     *s = 0.0;
+    *acc = 0.0;
   }
   
   r /= b->prof->l;
@@ -229,8 +234,8 @@ point_t *block_interpolate(block_t *b, data_t lambda) {
   return result;
 }
 
-point_t *block_interpolate_t(block_t *b, data_t t, data_t *lambda, data_t *s) {
-  *lambda = block_lambda(b, t, s);
+point_t *block_interpolate_t(block_t *b, data_t t, data_t *lambda, data_t *s, data_t *acc) {
+  *lambda = block_lambda(b, t, s, acc);
   return block_interpolate(b, *lambda);
 }
 
@@ -486,11 +491,11 @@ int main(int argc, char const **argv) {
   wprintf("Interpolation of block N20 (duration: %f s)\n", block_dt(b2));
   {
     data_t t = 0, tq = machine_tq(m), dt = block_dt(b2);
-    data_t lambda = 0, v = 0;
+    data_t lambda = 0, v = 0, acc = 0;
     printf("t lambda v x y z\n");
     for (t = 0; t - dt < tq/10.0; t += tq) {
-      block_interpolate_t(b2, t, &lambda, &v);
-      printf("%f %f %f %f %f %f\n", t, lambda, v, 
+      block_interpolate_t(b2, t, &lambda, &v, &acc);
+      printf("%f %f %f %f %f %f %f\n", t, lambda, v, acc,
         point_x(machine_setpoint(m)),
         point_y(machine_setpoint(m)),
         point_z(machine_setpoint(m))

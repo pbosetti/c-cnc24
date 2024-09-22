@@ -1,0 +1,5 @@
+*_cache/
+*_files/
+*.user
+*.html
+.Rhistory

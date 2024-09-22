@@ -13,6 +13,10 @@
 #include "point.h"
 #include <mosquitto.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /*
   ____            _                 _   _
  |  _ \  ___  ___| | __ _ _ __ __ _| |_(_) ___  _ __  ___
@@ -64,4 +68,8 @@ ccnc_error_t machine_listen_start(machine_t *m);
 ccnc_error_t machine_listen_stop(machine_t *m);
 void machine_disconnect(machine_t *m);
 
+
+#ifdef __cplusplus
+}
+#endif
 #endif // MACHINE_H

@@ -14,6 +14,10 @@
 #include "block.h"
 #include "machine.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /*
   ____            _                 _   _                 
  |  _ \  ___  ___| | __ _ _ __ __ _| |_(_) ___  _ __  ___ 
@@ -55,5 +59,7 @@ block_t *program_next(program_t *program);
 
 
 
-
+#ifdef __cplusplus
+}
+#endif
 #endif // PROGRAM_H

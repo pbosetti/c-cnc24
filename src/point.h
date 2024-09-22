@@ -12,6 +12,10 @@
 
 #include "defines.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /*
   ____            _                 _   _                 
  |  _ \  ___  ___| | __ _ _ __ __ _| |_(_) ___  _ __  ___ 
@@ -66,6 +70,9 @@ void point_delta(point_t const *from, point_t const *to, point_t *delta);
 void point_modal(point_t const *from, point_t *to);
 
 
+#ifdef __cplusplus
+}
+#endif
 #endif // POINT_H
 
 

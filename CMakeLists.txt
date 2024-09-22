@@ -1,7 +1,8 @@
 # Minimal settings
 cmake_minimum_required(VERSION 3.15)
-set(VERSION "1.1.0")
+set(VERSION "1.2.0")
 project(C-CNC VERSION ${VERSION} LANGUAGES C)
+set(CMAKE_INSTALL_PREFIX ${CMAKE_CURRENT_LIST_DIR}/usr CACHE PATH "Install path prefix" FORCE)
 
 # Build mode
 if(CMAKE_BUILD_TYPE MATCHES "Debug")
@@ -31,7 +32,9 @@ configure_file(${SOURCE_DIR}/defines.h.in ${SOURCE_DIR}/defines.h)
 # Target
 
 # static library
+file(GLOB HEADERS ${SOURCE_DIR}/*.h)
 add_library(ccnc_lib STATIC ${LIB_SOURCES})
+set_target_properties(ccnc_lib PROPERTIES PUBLIC_HEADER "${HEADERS}")
 
 # Test executables
 add_executable(point_test ${SOURCE_DIR}/point.c)
@@ -52,3 +55,12 @@ target_link_libraries(program_test m mosquitto)
 
 add_executable(ccnc ${MAIN_DIR}/ccnc.c)
 target_link_libraries(ccnc ccnc_lib m mosquitto)
+
+# Install
+install(TARGETS ccnc_lib ccnc
+  BUNDLE DESTINATION bin
+  LIBRARY DESTINATION lib
+  RUNTIME DESTINATION bin
+  ARCHIVE DESTINATION lib
+  PUBLIC_HEADER DESTINATION include
+)

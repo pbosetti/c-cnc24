@@ -17,6 +17,10 @@
 #include <assert.h>
 #include <sys/errno.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 // LABELS
 #define VERSION "@VERSION@"
 #define BUILD_TYPE "@CMAKE_BUILD_TYPE@"
@@ -65,4 +69,7 @@ typedef enum {
 #define iprintf(...)
 #endif
 
+#ifdef __cplusplus
+}
+#endif
 #endif // DEFINES_H

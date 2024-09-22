@@ -159,7 +159,7 @@ int main(int argc, char const **argv) {
   block_t *curr_b = NULL;
   point_t *pos = NULL;
   data_t t = 0, tt = 0, dt = 0, tq = 0;
-  data_t lambda = 0, v = 0;
+  data_t lambda = 0, v = 0, acc =0;
 
   if (argc != 3) {
     eprintf("I need exactly two arguments: G-code file, and INI file\n");
@@ -191,11 +191,11 @@ int main(int argc, char const **argv) {
     }
     dt = block_dt(curr_b);
     for (t = 0; t - dt < tq / 10.0; t += tq, tt += tq) {
-      pos = block_interpolate_t(curr_b, t, &lambda, &v);
+      pos = block_interpolate_t(curr_b, t, &lambda, &v, &acc);
       if (!pos) {
         continue;
       }
-      printf("%03lu %.3f %.3f %.6f %.3f %.3f %.3f %.3f %.3f\n", block_n(curr_b), t, tt, lambda, lambda * block_length(curr_b), v, point_x(pos), point_y(pos), point_z(pos));
+      printf("%03lu %.3f %.3f %.6f %.3f %.3f %.3f %.3f %.3f %.3f\n", block_n(curr_b), t, tt, lambda, lambda * block_length(curr_b), v, acc, point_x(pos), point_y(pos), point_z(pos));
     }
   }
 

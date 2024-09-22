@@ -422,7 +422,7 @@ ccnc_state_t ccnc_do_rapid_motion(ccnc_state_data_t *data) {
 // SIGINT triggers an emergency transition to stop
 ccnc_state_t ccnc_do_interp_motion(ccnc_state_data_t *data) {
   ccnc_state_t next_state = CCNC_NO_CHANGE;
-  data_t lambda, feedrate;
+  data_t lambda, feedrate, acc;
   point_t *sp = NULL;
   block_t *b = program_current(data->program);
 
@@ -430,7 +430,7 @@ ccnc_state_t ccnc_do_interp_motion(ccnc_state_data_t *data) {
 
   // Steps:
   // 1. calculate lambda and intepolate
-  sp = block_interpolate_t(b, data->t_blk, &lambda, &feedrate);
+  sp = block_interpolate_t(b, data->t_blk, &lambda, &feedrate, &acc);
 
   // 2. print position table
   printf("%03lu %02d %.3f %.3f %.3f %.3f %.1f %.3f %.3f %.3f\n", block_n(b), block_type(b), data->t_tot, data->t_blk, lambda, lambda * block_length(b), feedrate, point_x(sp), point_y(sp), point_z(sp));

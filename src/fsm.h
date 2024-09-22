@@ -15,6 +15,10 @@ Functions and types have been generated with prefix "ccnc_"
 
 #ifndef FSM_H
 #define FSM_H
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <stdlib.h>
 #include "machine.h"
 #include "program.h"
@@ -108,4 +112,8 @@ extern transition_func_t *const ccnc_transition_table[CCNC_NUM_STATES][CCNC_NUM_
 // state manager
 ccnc_state_t ccnc_run_state(ccnc_state_t cur_state, ccnc_state_data_t *data);
 
+#ifdef __cplusplus
+}
 #endif
+#endif // FSM_H
+

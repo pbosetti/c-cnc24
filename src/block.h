@@ -13,6 +13,10 @@
 #include "point.h"
 #include "machine.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /*
   ____            _                 _   _                 
  |  _ \  ___  ___| | __ _ _ __ __ _| |_(_) ___  _ __  ___ 
@@ -61,10 +65,12 @@ block_t *block_next(block_t const *b);
 
 
 /* METHODS ********************************************************************/
-data_t block_lambda(block_t *b, data_t time, data_t *speed);
+data_t block_lambda(block_t *b, data_t time, data_t *speed, data_t *acc);
 point_t *block_interpolate(block_t *b, data_t lambda);
-point_t *block_interpolate_t(block_t *b, data_t time, data_t *lambda, data_t *speed);
+point_t *block_interpolate_t(block_t *b, data_t time, data_t *lambda, data_t *speed, data_t *acc);
 
 
-
+#ifdef __cplusplus
+}
+#endif
 #endif // BLOCK_H
