@@ -40,7 +40,7 @@ typedef struct program program_t;
 */
 
 /* Lifecycle ******************************************************************/
-program_t *program_new(char const *filename);
+program_t *program_new(machine_t *machine);
 void program_free(program_t *program);
 void program_print(program_t *program, FILE *output);
 
@@ -53,9 +53,11 @@ block_t *program_last(program_t const *p);
 
 
 /* Methods ********************************************************************/
-ccnc_error_t program_parse(program_t *program, machine_t const *machine);
+ccnc_error_t program_parse(program_t *program, char const *filename);
+ccnc_error_t program_add_block(program_t *program, char const *block);
 void program_reset(program_t *program);
 block_t *program_next(program_t *program);
+void program_clear(program_t *p);
 
 
 

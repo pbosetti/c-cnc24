@@ -1,6 +1,6 @@
 // R Interface file
 // See https://teuder.github.io/rcpp4everyone_en/140_dataframe.html
-// [[Rcpp::plugins("cpp17")]]
+// [[Rcpp::export]]
 #include <Rcpp.h>
 #include <defines.h>
 #include <block.h>
@@ -17,6 +17,7 @@ class CNCpp {
 public:
   CNCpp(string ini_file) {
     _machine = machine_new(ini_file.c_str());
+    _prog = program_new(_machine);
   }
   
   ~CNCpp() {
@@ -26,13 +27,24 @@ public:
       machine_free(_machine);
   }
   
+  void add(string line) {
+    if (program_add_block(_prog, line.c_str()) != NO_ERR) {
+      stop("Cannot add line");
+    }
+  }
+  
   void load(string program_file) {
-    _prog = program_new(program_file.c_str());
-    program_parse(_prog, _machine);
+    if (program_parse(_prog, program_file.c_str()) != NO_ERR) {
+      stop("Cannot load program");
+    }
   }
   
   void print() {
     program_print(_prog, stdout);
+  }
+  
+  void clear() {
+    program_clear(_prog);
   }
   
   string version() {
@@ -63,9 +75,11 @@ public:
     
     while ((b = program_next(_prog)) != NULL) {
       if (block_type(b) == RAPID || block_type(b) == NO_MOTION) {
+        Rcout << "Skipping block " << block_line(b) << endl;
         continue;
       }
       t = 0;
+      Rcout << "Simulating block " << block_line(b) << endl;
       while (t < block_dt(b) + dt) {
         pt = block_interpolate_t(b, t, &lambda, &speed, &acc);
         _n.push_back(block_n(b));
@@ -116,9 +130,11 @@ RCPP_MODULE(cncpp) {
   class_<CNCpp>("CNCpp")
   .constructor<string>()
   .method("load", &CNCpp::load, "Load a program file")
+  .method("add", &CNCpp::add, "Add a line to the program")
   .method("simulate", &CNCpp::simulate, "Simulate the program")
   .method("print", &CNCpp::print, "Print the program")
   .method("reset", &CNCpp::reset, "Reset the program to first block")
+  .method("clear", &CNCpp::clear, "Clear the blocks list")
   .method("version", &CNCpp::version, "Get the version of the library")
   .field_readonly("n", &CNCpp::_n)
   .field_readonly("t_time", &CNCpp::_t_time)

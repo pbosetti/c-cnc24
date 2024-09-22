@@ -116,12 +116,12 @@ ccnc_state_t ccnc_do_init(ccnc_state_data_t *data) {
   }
 
   // 3. load and parse G-Code file
-  data->program = program_new(data->prog_file);
+  data->program = program_new(data->machine);
   if (!data->program) {
     next_state = CCNC_STATE_STOP;
     goto next_state;
   }
-  if (program_parse(data->program, data->machine) != NO_ERR) {
+  if (program_parse(data->program, data->prog_file) != NO_ERR) {
     next_state = CCNC_STATE_STOP;
     goto next_state;
   }

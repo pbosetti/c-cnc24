@@ -25,6 +25,19 @@ cnc <- new(CNCpp, "../machine.ini")
 cnc$version()
 ```
 
+Add lines:
+
+```{r}
+cnc$clear()
+cnc$add("N30 G01 x-10 y0 Z500 F200")
+cnc$add("N40 G01 X123 y236 F2000 S5000")
+cnc$add("N50 G01 X100 y100 F2000 S5000")
+cnc$reset()
+cnc$print()
+```
+
+
+
 Load a program:
 ```{r}
 cnc$load("../test.gcode")

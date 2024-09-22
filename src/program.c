@@ -20,6 +20,7 @@
 
 typedef struct program {
   char *filename; // G-code file path
+  machine_t *machine; // Machine
   block_t *first; // First block
   block_t *current;
   block_t *last;
@@ -36,24 +37,19 @@ typedef struct program {
 */
 
 /* Lifecycle ******************************************************************/
-program_t *program_new(char const *filename) {
-  assert(filename);
+program_t *program_new(machine_t *machine) {
+  assert(machine);
   program_t *p = (program_t *)malloc(sizeof(program_t));
   if (!p) {
     eprintf("Could not allocate memory for program\n");
     return NULL;
   }
-  if (strlen(filename) == 0) {
-    eprintf("Invalid file name\n");
-    free(p);
-    return NULL;
-  }
   memset(p, 0, sizeof(*p));
-  p->filename = strdup(filename);
+  p->machine = machine;
   return p;
 }
 
-void program_free(program_t *p) {
+void program_clear(program_t *p) {
   assert(p);
   block_t *b, *tmp;
   b = p->first;
@@ -62,6 +58,15 @@ void program_free(program_t *p) {
     b = block_next(b);
     block_free(tmp);
   }
+  p->first = NULL;
+  p->current = NULL;
+  p->last = NULL;
+  p->n = 0;
+}
+
+void program_free(program_t *p) {
+  assert(p);
+  program_clear(p);
   free(p->filename);
   free(p);
   p = NULL;
@@ -89,15 +94,35 @@ program_getter(block_t *, first, first);
 program_getter(block_t *, current, current);
 program_getter(block_t *, last, last);
 
+
 /* Methods ********************************************************************/
-ccnc_error_t program_parse(program_t *p, machine_t const *m) {
-  assert(p && m);
+ccnc_error_t program_add_block(program_t *p, char const *line) {
+  assert(p && line);
+  block_t *b = NULL;
+  if (!(b = block_new(line, p->last, p->machine))) {
+    eprintf("Error creating a block from line %s\n", line);
+    return PARSE_ERR;
+  }
+  if (p->first == NULL) {
+    p->first = b;
+  }
+  p->last = b;
+  p->n++;
+  return NO_ERR;
+}
+
+
+ccnc_error_t program_parse(program_t *p, char const *filename) {
+  assert(p);
   FILE *file = NULL;
   ssize_t line_len = 0;
   size_t n = 0;
   char *line = NULL;
   block_t *b = NULL;
+  ccnc_error_t rv = NO_ERR;
+  program_clear(p);
 
+  p->filename = strdup(filename);
   file = fopen(p->filename, "r");
   if (!file) {
     eprintf("Cannot open the file at %s\n", p->filename);
@@ -109,20 +134,14 @@ ccnc_error_t program_parse(program_t *p, machine_t const *m) {
     if (line[line_len - 1] == '\n') {
       line[line_len - 1] = '\0';
     }
-    if (!(b = block_new(line, p->last, m))) {
-      eprintf("Error creating a block from line %s\n", line);
-      return PARSE_ERR;
-    }
-    if (p->first == NULL) {
-      p->first = b;
-    }
-    p->last = b;
-    p->n++;
+    rv = program_add_block(p, line);
+    if (rv != NO_ERR) break;
   }
+
   fclose(file);
   free(line);
   program_reset(p);
-  return NO_ERR;
+  return rv;
 }
 
 void program_reset(program_t *p) {
@@ -170,12 +189,12 @@ int main(int argc, char const **argv) {
     eprintf("Error in INI file\n");
     exit(EXIT_FAILURE);
   }
-  p = program_new(argv[1]);
+  p = program_new(m);
   if (!p) {
     eprintf("Error creating a program\n");
     exit(EXIT_FAILURE);
   }
-  if (program_parse(p, m) != NO_ERR) {
+  if (program_parse(p, argv[1]) != NO_ERR) {
     eprintf("Error parsing the program\n");
     exit(EXIT_FAILURE);
   }
